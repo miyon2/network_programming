@@ -13,6 +13,7 @@ void HandleTCPClient(int clntSocket);
 int main(int argc, char *argv[]){
 	int servSock;
 	int clntSock;
+	int recvMsgSize;
 	struct sockaddr_in echoServAddr;
 	struct sockaddr_in echoClntAddr;
 	unsigned short echoServPort;
@@ -49,7 +50,8 @@ int main(int argc, char *argv[]){
 			DieWithError("accept() failed");
 		}
 
-		printf("Handling client %s\n", inet_ntoa(echoClntAddr.sin_addr));
+		printf("client ip : %s\n", inet_ntoa(echoClntAddr.sin_addr));
+		printf("port : %d\n", echoClntAddr.sin_port);
 
 		HandleTCPClient(clntSock);
 	}
