@@ -5,7 +5,15 @@
 #include <string.h>
 #include <unistd.h>
 
-#define RCVBUFSIZE 32
+#define RCVBUFSIZE      32
+
+#define EchoReq 	"EchoReq|"
+#define FileUpReq	"FileUpReq|"
+#define FileGetReq	"FileGetReq|"
+#define FileListReq	"FileListReq"
+#define EchoRep		"EchoRep|"
+#define FileAck		"FileAck|"
+#define Delimeter	"|"
 
 void DieWithError(char* errorMessage);
 
@@ -15,13 +23,18 @@ int main(int argc, char *argv[]){
 	struct sockaddr_in echoServAddr;
 	unsigned short echoServPort;
 	char *servIP = malloc(sizeof(char) * 16);
-	char *echoString = malloc(sizeof(char) * 200);
+	char *echoString = malloc(sizeof(char) * 256);
 	char *tmpPort = malloc(sizeof(char) * 6);
 	char *first_str = malloc(sizeof(char) * 20);
 	char echoBuffer[RCVBUFSIZE];
 	unsigned int firstStringLen;
 	unsigned int echoStringLen;
 	int bytesRcvd, totalBytesRcvd;
+
+	//variables for FT
+	char msgType[20];
+	char *ftString;
+	char *ftFileName = malloc(sizeof(char) * 50);
 
 	printf("server ip : ");
 	scanf("%s", servIP);
@@ -59,7 +72,7 @@ int main(int argc, char *argv[]){
 		DieWithError("connect() failed");
 	}
 
-	while(strcmp(echoString, "quit") != 0){
+	while(strcmp(echoString, "quit") != 0){		
 		if(first_flag != 0){
 			printf("msg-> ");
 			scanf("%s", echoString);
@@ -68,30 +81,132 @@ int main(int argc, char *argv[]){
 			if(send(sock, echoString, echoStringLen, 0) != echoStringLen){
 				DieWithError("send() sent a diffrent number of bytes than expected");
 			}
+			
+			// client input strings, TF
+			if(strcmp(echoString, "TF") == 1){
+				printf("Welcome to Socket FT client!\n");
+				printf("ftp command [p)ut   g)et   l)s   r)ls   e)xit]->");
+				scanf("%c", ftString);
+	
+				/*
+				#define FileUpReq       11
+				#define FileListReq     12
+				#define FileAck         13
+				#define FTEnd           14
+				*/
+	
+				while((*ftString) != 'e'){
+					switch(*ftString){
+						case 'p':
+							strcpy(msgType,FileUpReq);
+							// send put request to server
+							if(send(sock, echoString, strlen(echoString), 0) != 1){
+								DieWithError("send() sent a diffrent number of bytes than expected");
+							}
+	
+							// receiving fileack from server
+							if(bytesRcvd = recv(sock, echoBuffer, RCVBUFSIZE - 1, 0) <= 0 && echoBuffer[0] == 'a'){
+								DieWithError("recv() failed or connection closed premturely");
+							}
+	
+							printf("filename to put to server ->");
+							scanf("%s", echoString);
+	
+							if(send(sock, echoString, echoStringLen, 0) != echoStringLen){
+								DieWithError("send() sent a diffrent number of bytes than expected");
+							}
+						
+							/*
+							// Receiving file name or get file						
+							totalBytesRcvd = 0;
 		
-			totalBytesRcvd = 0;
-			printf("msg<- ");
+							while(totalBytesRcvd < echoStringLen){
+								if((bytesRcvd = recv(sock, echoBuffer, RCVBUFSIZE - 1, 0)) <= 0){
+									DieWithError("recv() failed or connection closed premturely");
+								}
+		
+								totalBytesRcvd += bytesRcvd;
+								echoBuffer[bytesRcvd] = '\0';
+								printf("%s\n", echoBuffer);
+							}
+							*/
+							break;
+						case 'g':
+							strcpy(msgType, FileGetReq);
+							// send put request to server
+							if(send(sock, msgType, strlen(msgType), 0) != 2){
+								DieWithError("send() sent a diffrent number of bytes than expected");
+							}
+	
+							// receiving fileack from server
+							if(bytesRcvd = recv(sock, echoBuffer, RCVBUFSIZE - 1, 0) <= 0 && echoBuffer[0] == 'a'){
+								DieWithError("recv() failed or connection closed premturely");
+							}
 
-			while(totalBytesRcvd < echoStringLen){
-				if((bytesRcvd = recv(sock, echoBuffer, RCVBUFSIZE - 1, 0)) <= 0){
-					DieWithError("recv() failed or connection closed premturely");
+							printf("filename to put to server ->");
+							scanf("%s", echoString);	
+
+							if(send(sock, echoString, echoStringLen, 0) != echoStringLen){
+								DieWithError("send() sent a diffrent number of bytes than expected");
+							}
+							break;
+						case 'l':
+							break;
+						case 'r':
+							strcpy(msgType, FileListReq);
+							// send file list request to server
+							if(send(sock, msgType, strlen(msgType), 0) != 1){
+								DieWithError("send() sent a diffrent number of bytes than expected");
+							}
+	
+							// receiving fileack from server
+							if(bytesRcvd = recv(sock, echoBuffer, RCVBUFSIZE - 1, 0) <= 0 && echoBuffer[0] == 'a'){
+								DieWithError("recv() failed or connection closed premturely");
+							}
+	
+							printf("list request to server ->");
+							scanf("%s", echoString);
+	
+							if(send(sock, echoString, echoStringLen, 0) != echoStringLen){
+								DieWithError("send() sent a diffrent number of bytes than expected");
+							}
+							break;
+						case 'e':
+							break;
+					}
+					printf("ftp command [p)ut   g)et   l)s   r)ls   e)xit]->");
+					scanf("%c", ftString);
 				}
-				totalBytesRcvd += bytesRcvd;
-				echoBuffer[bytesRcvd] = '\0';
-				printf("%s\n", echoBuffer);
+			}
+			else{
+				totalBytesRcvd = 0;
+				printf("msg<- ");
+
+				while(totalBytesRcvd < echoStringLen){
+					if((bytesRcvd = recv(sock, echoBuffer, RCVBUFSIZE - 1, 0)) <= 0){
+						DieWithError("recv() failed or connection closed premturely");
+					}
+					totalBytesRcvd += bytesRcvd;
+					echoBuffer[bytesRcvd] = '\0';
+					printf("%s\n", echoBuffer);
+				}
 			}
 		}
 		else{
 			first_str = "Hello via client";
 			printf("msg-> %s\n", first_str);
 			echoStringLen = strlen(first_str);
+
 			if(send(sock, first_str, echoStringLen, 0) != echoStringLen){
 				DieWithError("send() sent a diffrent number of bytes than expected");
 			}
+
 			first_flag = 1;
 
 			totalBytesRcvd = 0;
+
 			printf("msg<- ");
+
 			if((bytesRcvd = recv(sock, echoBuffer, RCVBUFSIZE - 1, 0)) <= 0){
 				DieWithError("recv() failed or connection closed premturely");
 			}
